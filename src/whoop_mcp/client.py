@@ -69,8 +69,10 @@ class WhoopClient:
         payload = resp.json()
         if "refresh_token" not in payload:
             raise WhoopError(
-                "WHOOP returned no refresh_token — the 'offline' scope is missing "
-                "from the authorisation request or from the app's allowed scopes."
+                "WHOOP returned no refresh_token. That means the 'offline' scope "
+                "did not reach the authorisation request — it is sent in the "
+                "authorize URL, not configured on the app, so check SCOPES here "
+                "rather than the developer dashboard."
             )
         tokens = Tokens.from_response(payload)
         self._store.save(tokens)

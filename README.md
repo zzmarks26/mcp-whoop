@@ -80,8 +80,13 @@ URL `<BASE_URL>/auth/callback`. Copy the client id and secret.
 Create one at [developer.whoop.com](https://developer.whoop.com/) with:
 
 - redirect URI `<BASE_URL>/oauth/callback`
-- scopes including **`offline`** — without it WHOOP issues no refresh token and
-  access dies after the first hour.
+- these scopes ticked: `read:profile`, `read:body_measurement`, `read:cycles`,
+  `read:recovery`, `read:sleep`, `read:workout`
+
+**You will not find an `offline` scope in the dashboard, and that is expected.**
+`offline` is not configured on the app — it is sent in the authorization
+request, and it is what makes WHOOP return a refresh token instead of a
+one-hour access token. The server adds it automatically; nothing to do.
 
 ### 3. Configure and run
 
