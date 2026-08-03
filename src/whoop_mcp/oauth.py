@@ -33,6 +33,22 @@ def _page(title: str, body: str, status: int = 200) -> HTMLResponse:
 
 
 def register(mcp: FastMCP, client: WhoopClient, settings: Settings) -> None:
+    @mcp.custom_route("/", methods=["GET", "POST"])
+    async def index(request: Request) -> Response:
+        """Say where the MCP endpoint actually is.
+
+        Clients configured with the bare domain land here and get a bare 404,
+        which surfaces as "no MCP server was found at the provided URL" — true
+        but easy to misread as a permissions problem.
+        """
+        return _page(
+            "WHOOP MCP server",
+            f"<p>This is an MCP server. The endpoint is "
+            f"<code>{settings.base_url}/mcp</code> — configure your client with "
+            f"that full URL, including the <code>/mcp</code> suffix.</p>",
+            404,
+        )
+
     @mcp.custom_route("/oauth/start", methods=["GET"])
     async def oauth_start(request: Request) -> Response:
         supplied = request.query_params.get("token", "")
