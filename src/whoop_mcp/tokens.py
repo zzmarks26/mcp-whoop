@@ -45,29 +45,47 @@ class Tokens:
 
 
 class TokenStore:
+    """Cache backed by the file, not a substitute for it.
+
+    Because WHOOP invalidates a refresh token as soon as it is used, an
+    in-memory copy goes permanently stale the moment anything else rotates
+    the token — another process, a bootstrap re-run, a restored backup. The
+    cache is therefore keyed on the file's mtime and dropped when it moves.
+    """
+
     def __init__(self, path: Path) -> None:
         self._path = path
         self._lock = asyncio.Lock()
         self._cached: Tokens | None = None
+        self._cached_mtime: float | None = None
 
     @property
     def lock(self) -> asyncio.Lock:
         return self._lock
 
+    def _mtime(self) -> float | None:
+        try:
+            return self._path.stat().st_mtime
+        except FileNotFoundError:
+            return None
+
     def load(self) -> Tokens:
-        if self._cached is not None:
-            return self._cached
-        if not self._path.exists():
+        mtime = self._mtime()
+        if mtime is None:
             raise NotAuthorisedError(
                 "No WHOOP token stored. Run the one-time OAuth bootstrap "
                 "(/oauth/start) before using this server."
             )
+        if self._cached is not None and mtime == self._cached_mtime:
+            return self._cached
+
         data = json.loads(self._path.read_text())
         self._cached = Tokens(
             access_token=data["access_token"],
             refresh_token=data["refresh_token"],
             expires_at=float(data["expires_at"]),
         )
+        self._cached_mtime = mtime
         return self._cached
 
     def save(self, tokens: Tokens) -> None:
@@ -77,6 +95,13 @@ class TokenStore:
         os.chmod(tmp, 0o600)
         os.replace(tmp, self._path)  # atomic within a filesystem
         self._cached = tokens
+        self._cached_mtime = self._mtime()
+
+    def reload(self) -> Tokens:
+        """Force a read from disk, discarding whatever is cached."""
+        self._cached = None
+        self._cached_mtime = None
+        return self.load()
 
     def exists(self) -> bool:
         return self._path.exists()

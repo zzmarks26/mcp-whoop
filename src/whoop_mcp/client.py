@@ -90,12 +90,41 @@ class WhoopClient:
             },
         )
         if resp.status_code != 200:
+            # The token we tried may simply be one WHOOP has already retired,
+            # rotated out from under us by another process. Re-read the file
+            # before concluding that the whole grant is gone.
+            fresh = self._store.reload()
+            if fresh.refresh_token != tokens.refresh_token:
+                logger.info("Refresh token had been rotated on disk; retrying")
+                return await self._refresh_with(fresh)
+            raise WhoopError(
+                f"Refresh failed ({resp.status_code}): {resp.text}. "
+                "The stored refresh token is no longer accepted, so the grant "
+                "itself is gone — re-run the OAuth bootstrap at /oauth/start."
+            )
+        # The response carries a *new* refresh token; the old one is now dead,
+        # so persist before doing anything else with it.
+        new_tokens = Tokens.from_response(resp.json())
+        self._store.save(new_tokens)
+        return new_tokens
+
+    async def _refresh_with(self, tokens: Tokens) -> Tokens:
+        """Single refresh attempt, used when retrying with a reloaded token."""
+        resp = await self._http.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": tokens.refresh_token,
+                "client_id": self._settings.whoop_client_id,
+                "client_secret": self._settings.whoop_client_secret,
+                "scope": "offline",
+            },
+        )
+        if resp.status_code != 200:
             raise WhoopError(
                 f"Refresh failed ({resp.status_code}): {resp.text}. "
                 "Re-run the OAuth bootstrap at /oauth/start."
             )
-        # The response carries a *new* refresh token; the old one is now dead,
-        # so persist before doing anything else with it.
         new_tokens = Tokens.from_response(resp.json())
         self._store.save(new_tokens)
         return new_tokens
