@@ -8,6 +8,7 @@ a single-use state value.
 from __future__ import annotations
 
 import hmac
+import html
 import logging
 import secrets
 
@@ -64,7 +65,10 @@ def register(mcp: FastMCP, client: WhoopClient, settings: Settings) -> None:
     async def oauth_callback(request: Request) -> Response:
         error = request.query_params.get("error")
         if error:
-            return _page("WHOOP returned an error", f"<p>{error}</p>", 400)
+            # `error` is attacker-controllable query input; never emit it raw.
+            return _page(
+                "WHOOP returned an error", f"<p>{html.escape(error)}</p>", 400
+            )
 
         state = request.query_params.get("state", "")
         if state not in _pending_states:
@@ -84,7 +88,10 @@ def register(mcp: FastMCP, client: WhoopClient, settings: Settings) -> None:
             await client.exchange_code(code)
         except Exception as exc:  # surfaced to a human in a browser
             logger.exception("WHOOP token exchange failed")
-            return _page("Token exchange failed", f"<pre>{exc}</pre>", 500)
+            # The message embeds WHOOP's response body, so escape it too.
+            return _page(
+                "Token exchange failed", f"<pre>{html.escape(str(exc))}</pre>", 500
+            )
 
         return _page(
             "WHOOP connected",

@@ -1,0 +1,39 @@
+# Fly.io config for a single-user mcp-whoop deployment.
+#
+# Secrets (GitHub/WHOOP credentials, JWT_SIGNING_KEY, SETUP_TOKEN, BASE_URL,
+# ALLOWED_GITHUB_LOGINS) are NOT in this file: set them with `fly secrets set`.
+
+app = "REPLACE-WITH-YOUR-APP-NAME"
+primary_region = "ord"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8000"
+  DATA_DIR = "/data"
+  # FastMCP's OAuth client registrations live here; keep them on the volume
+  # so a redeploy does not sign the connector out.
+  FASTMCP_HOME = "/data/fastmcp"
+
+# Holds the WHOOP refresh token. WHOOP refresh tokens are single-use, so this
+# app must run as exactly ONE machine: deploy with `--ha=false` and never
+# `fly scale count 2`.
+[[mounts]]
+  source = "whoop_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # MCP sessions are held in memory, so keep the machine up rather than
+  # letting it stop when idle.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
