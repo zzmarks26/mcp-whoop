@@ -24,6 +24,12 @@ def build_server(settings: Settings) -> FastMCP:
         # Without a stable key, restarting the container invalidates every
         # token FastMCP has issued and all clients must sign in again.
         jwt_signing_key=settings.jwt_signing_key,
+        # Claude identifies itself with a URL client ID (CIMD) whenever the
+        # server advertises support, but claude.ai answers this server's fetch
+        # of that metadata document with 403, so sign-in fails with "Client
+        # Not Registered". Turning CIMD off makes clients fall back to dynamic
+        # client registration, which needs no outbound fetch.
+        enable_cimd=False,
     )
 
     mcp = FastMCP(
