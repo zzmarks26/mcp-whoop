@@ -3,7 +3,7 @@
 # Secrets (GitHub/WHOOP credentials, JWT_SIGNING_KEY, SETUP_TOKEN, BASE_URL,
 # ALLOWED_GITHUB_LOGINS) are NOT in this file: set them with `fly secrets set`.
 
-app = "REPLACE-WITH-YOUR-APP-NAME"
+app = "whoop-mcp-zack"
 primary_region = "ord"
 
 [build]
